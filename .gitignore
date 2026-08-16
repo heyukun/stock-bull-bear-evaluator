@@ -1,0 +1,27 @@
+# ===== macOS system files =====
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# ===== Python =====
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+.pytest_cache/
+.mypy_cache/
+.venv/
+venv/
+env/
+
+# ===== Editor / IDE =====
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# ===== OS / temp =====
+Thumbs.db
+*.log
+*.tmp
