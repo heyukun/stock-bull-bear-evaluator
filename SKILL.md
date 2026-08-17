@@ -1,5 +1,7 @@
 ---
 name: stock-bull-bear-evaluator
+slug: stock-bull-bear-evaluator
+displayName: 股票多空因子评估专家
 description: 股票多空因子评估专家。当用户输入一个公司名或股票名（如"比亚迪"、"腾讯控股"、"分析XX的多空"），对该公司进行 13 个因子的系统性多空评估，并针对利空因子寻找公司应对措施、定义可量化跟踪指标、通过网络搜索获取最新进展并给出评价（超出预期/符合预期/不及预期）。覆盖 A 股与港股。触发场景：用户说"评估XX的多空""XX多空分析""分析XX股票多空因子""多空评估：公司名"等。
 agent_created: true
 ---
