@@ -40,7 +40,8 @@ DEMO_INPUT = {
         "公司资本操作":    {"current": "中性偏多", "mid": "向好",   "long": "中性偏多"},
         "筹码多空":        {"current": "中性",     "mid": "不明朗", "long": "中性"},
         "资金多空":        {"current": "中性偏多", "mid": "向好",   "long": "中性"},
-        "估值水位":        {"current": "中性偏空", "mid": "不明朗", "long": "中性"}
+        "业绩动能":        {"current": "中性偏多", "mid": "向好",   "long": "中性"},
+        "估值":            {"current": "中性偏空", "mid": "不明朗", "long": "中性"}
     }
 }
 
@@ -168,13 +169,31 @@ def compute(data, cfg):
 
     # 综合加权总分
     composite = sum(frame_results[fk]["score"] * frame_results[fk]["weight"] for fk in FRAMES)
+    raw_rating = rating_of(composite, thresholds)
+
+    # 尾部风险熔断封顶：不参与加权，只封顶综合评级（输入格式见 scoring-algorithm.md 第 6.2 节）
+    breakers = []
+    for b in data.get("circuit_breakers") or []:
+        if isinstance(b, str):
+            breakers.append({"item": b, "evidence": ""})
+        elif isinstance(b, dict):
+            breakers.append({"item": str(b.get("item", "未命名熔断项")), "evidence": str(b.get("evidence", ""))})
+    final_rating = raw_rating
+    cap_rating = cfg.get("circuit_breaker", {}).get("cap_rating")
+    if breakers and cap_rating:
+        order = [t["label"] for t in thresholds]
+        if cap_rating in order and raw_rating in order and order.index(raw_rating) < order.index(cap_rating):
+            final_rating = cap_rating
+
     return {
         "company": data.get("company", "未命名"),
         "code": data.get("code", ""),
         "date": data.get("date", ""),
         "frames": frame_results,
         "composite": composite,
-        "composite_rating": rating_of(composite, thresholds),
+        "composite_rating": final_rating,
+        "raw_rating": raw_rating,
+        "circuit_breakers": breakers,
         "config_version": cfg.get("version", ""),
         "warnings": warnings,
     }
@@ -226,6 +245,18 @@ def render_markdown(res):
     lines.append("")
     lines.append("**综合加权总分：%.2f / 10 → 综合评级：%s**（阈值：≥8.0 强烈看多 / 6.5-8.0 看多 / 4.5-6.5 中性 / 3.0-4.5 看空 / <3.0 强烈看空）"
                  % (res["composite"], res["composite_rating"]))
+
+    if res.get("circuit_breakers"):
+        lines.append("")
+        lines.append("#### ⚠️ 尾部风险熔断触发（综合评级封顶）")
+        lines.append("")
+        lines.append("| 熔断项 | 证据 |")
+        lines.append("|--------|------|")
+        for b in res["circuit_breakers"]:
+            lines.append("| %s | %s |" % (b["item"], b["evidence"] or "—"))
+        lines.append("")
+        lines.append("> 触发尾部风险熔断，原始评级 **%s** 封顶为 **%s**（熔断项不参与加权，定义见 SKILL.md 第 1.6 步）。"
+                     % (res["raw_rating"], res["composite_rating"]))
 
     if res["warnings"]:
         lines.append("")
