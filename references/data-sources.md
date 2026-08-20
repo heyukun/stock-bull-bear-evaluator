@@ -149,7 +149,7 @@ python3 scripts/momentum_calc.py sh002594
 
 ## 6. 估值（因子 14）
 
-先按 SKILL.md 纪律第 23 条判定公司类型（成长/价值/周期），再取对应主指标（成长→PEG/PS，价值→PE/股息率，周期→PB）。
+先按 factor-definitions.md 第 14 节判定公司类型（成长/价值/周期），再取对应主指标（成长→PEG/PS，价值→PE/股息率，周期→PB）。
 
 ### 方法 1：元宝搜索（优先，T2+ 来源）
 

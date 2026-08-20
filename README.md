@@ -67,7 +67,7 @@ python3 scripts/momentum_calc.py <stock_code>
 7. 尾部风险熔断不可跳过，触发任一项综合评级封顶「看空」。
 8. 前置筛选关卡一票否决，任一触发即终止全部流程。
 
-详细流程与全部 24 条纪律见 [SKILL.md](./SKILL.md)。
+详细流程与全部 20 条纪律见 [SKILL.md](./SKILL.md)。
 
 ## License
 
