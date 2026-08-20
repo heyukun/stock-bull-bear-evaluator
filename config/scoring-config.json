@@ -98,7 +98,7 @@
   ],
   "circuit_breaker": {
     "cap_rating": "看空",
-    "description": "尾部风险熔断封顶：输入 JSON 的 circuit_breakers 非空时，综合评级封顶为该档位（原始评级照常展示）。熔断项定义见 SKILL.md 第 1.6 步（偿债红线/审计与治理/大股东质押/客户集中度）。"
+    "description": "尾部风险熔断封顶：输入 JSON 的 circuit_breakers 非空时，综合评级封顶为该档位（原始评级照常展示）。熔断项定义见 SKILL.md 第 5 步（偿债红线/审计与治理/大股东质押/客户集中度）。"
   },
   "changelog": [
     { "date": "2026-08-16", "change": "初始版本 v1.0.0：13因子三时间框架加权评分，五档评级阈值", "reason": "将定性多空判断量化为可配置、可回测的加权总分" },

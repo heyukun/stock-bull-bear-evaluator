@@ -255,7 +255,7 @@ def render_markdown(res):
         for b in res["circuit_breakers"]:
             lines.append("| %s | %s |" % (b["item"], b["evidence"] or "—"))
         lines.append("")
-        lines.append("> 触发尾部风险熔断，原始评级 **%s** 封顶为 **%s**（熔断项不参与加权，定义见 SKILL.md 第 1.6 步）。"
+        lines.append("> 触发尾部风险熔断，原始评级 **%s** 封顶为 **%s**（熔断项不参与加权，定义见 SKILL.md 第 5 步）。"
                      % (res["raw_rating"], res["composite_rating"]))
 
     if res["warnings"]:
