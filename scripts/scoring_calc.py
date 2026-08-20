@@ -22,6 +22,7 @@ DEFAULT_CONFIG = os.path.join(BASE_DIR, "config", "scoring-config.json")
 FRAMES = ("current", "mid", "long")
 NEUTRAL_SCORE = 5.5
 TOLERANCE = 1e-4
+BREAKER_SCORE = -1.0  # 尾部风险熔断触发时的综合评分哨兵值（加权结果作废）
 
 DEMO_INPUT = {
     "company": "示例公司（演示数据）",
@@ -171,7 +172,7 @@ def compute(data, cfg):
     composite = sum(frame_results[fk]["score"] * frame_results[fk]["weight"] for fk in FRAMES)
     raw_rating = rating_of(composite, thresholds)
 
-    # 尾部风险熔断封顶：不参与加权，只封顶综合评级（输入格式见 scoring-algorithm.md 第 6.2 节）
+    # 尾部风险熔断：不参与加权；触发时综合评分记为 BREAKER_SCORE(-1)，评级封顶 cap_rating
     breakers = []
     for b in data.get("circuit_breakers") or []:
         if isinstance(b, str):
@@ -184,13 +185,16 @@ def compute(data, cfg):
         order = [t["label"] for t in thresholds]
         if cap_rating in order and raw_rating in order and order.index(raw_rating) < order.index(cap_rating):
             final_rating = cap_rating
+    # 熔断触发时综合评分记为 -1（哨兵值，表示加权结果被一票否决）
+    final_composite = BREAKER_SCORE if breakers else composite
 
     return {
         "company": data.get("company", "未命名"),
         "code": data.get("code", ""),
         "date": data.get("date", ""),
         "frames": frame_results,
-        "composite": composite,
+        "composite": final_composite,
+        "raw_composite": composite,
         "composite_rating": final_rating,
         "raw_rating": raw_rating,
         "circuit_breakers": breakers,
@@ -240,23 +244,29 @@ def render_markdown(res):
         fr = res["frames"][fk]
         lines.append("| %s | %.2f | %s | %.2f | %s |" % (
             fr["label"], fr["score"], pct(fr["weight"]), fr["score"] * fr["weight"], fr["rating"]))
-    lines.append("| **综合加权总分** | | **100%%** | **%.2f** | **%s** |" % (
-        res["composite"], res["composite_rating"]))
+    tripped = bool(res.get("circuit_breakers"))
+    comp_disp = "-1" if tripped else "%.2f" % res["composite"]
+    lines.append("| **综合加权总分** | | **100%%** | **%s** | **%s** |" % (
+        comp_disp, res["composite_rating"]))
     lines.append("")
-    lines.append("**综合加权总分：%.2f / 10 → 综合评级：%s**（阈值：≥8.0 强烈看多 / 6.5-8.0 看多 / 4.5-6.5 中性 / 3.0-4.5 看空 / <3.0 强烈看空）"
-                 % (res["composite"], res["composite_rating"]))
+    summary = "**综合加权总分：%s / 10 → 综合评级：%s**" % (comp_disp, res["composite_rating"])
+    if tripped:
+        summary += "（熔断触发，原始加权总分 %.2f 作废，按 -1 计）" % res["raw_composite"]
+    else:
+        summary += "（阈值：≥8.0 强烈看多 / 6.5-8.0 看多 / 4.5-6.5 中性 / 3.0-4.5 看空 / <3.0 强烈看空）"
+    lines.append(summary)
 
-    if res.get("circuit_breakers"):
+    if tripped:
         lines.append("")
-        lines.append("#### ⚠️ 尾部风险熔断触发（综合评级封顶）")
+        lines.append("#### ⚠️ 尾部风险熔断触发（综合评分记为 -1）")
         lines.append("")
         lines.append("| 熔断项 | 证据 |")
         lines.append("|--------|------|")
         for b in res["circuit_breakers"]:
             lines.append("| %s | %s |" % (b["item"], b["evidence"] or "—"))
         lines.append("")
-        lines.append("> 触发尾部风险熔断，原始评级 **%s** 封顶为 **%s**（熔断项不参与加权，定义见 SKILL.md 第 5 步）。"
-                     % (res["raw_rating"], res["composite_rating"]))
+        lines.append("> 触发尾部风险熔断：综合评分结果按 **-1** 计（原始加权总分 %.2f），原始评级 **%s** 封顶为 **%s**（熔断项不参与加权，定义见 SKILL.md 第 5 步）。"
+                     % (res["raw_composite"], res["raw_rating"], res["composite_rating"]))
 
     if res["warnings"]:
         lines.append("")
