@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-业绩动能交叉校验计算脚本
+业绩动能（因子 13）检查计算脚本
 
 从 WeStock CLI 获取最近 8+ 个季度财务数据，计算营收/利润/现金流趋势
 和财务比率（周转率/流动性）趋势，输出预警报告。
@@ -617,7 +617,7 @@ def format_ratio(val):
 def output_report(dates, quarterly_data, yoy_data, ratio_data, alerts):
     """输出 markdown 格式报告"""
     lines = []
-    lines.append('## 业绩动能交叉校验报告')
+    lines.append('## 业绩动能（因子 13）检查报告')
     lines.append('')
 
     # 显示最近4个季度的数据
@@ -704,7 +704,7 @@ def output_report(dates, quarterly_data, yoy_data, ratio_data, alerts):
     if triggered:
         lines.append('### ⚠️ 业绩动能与多空因子结论存在背离')
         lines.append('')
-        lines.append(f'13 因子评估的**结构性利多/利空**与以下**短期业绩动能预警**存在背离：')
+        lines.append(f'结构类因子（行业/政策/壁垒等）的**中长期判断**与以下**短期业绩动能预警**存在背离：')
         lines.append('')
         for a in triggered:
             lines.append(f'- **{a["check"]}**：{a["detail"]}')
