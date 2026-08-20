@@ -14,6 +14,16 @@ agent_created: true
 
 **适用市场**：A 股（sh/sz/bj）、港股（hk）。
 
+## 信息获取优先级（强制）
+
+评估所需的财务数据、新闻、公告、研报等信息，按以下优先级选择获取渠道：
+
+1. **优先使用当前环境内置的插件 / skill** 获取财务数据、新闻、公告、研报等信息；
+2. 若没有可用的内置渠道，再看是否有可用的**用户 skill** 可以获取以上信息；
+3. 若以上都不可用，则通过 **WebSearch / FetchURL** 的方式获取信息。
+
+本 skill 不限定任何具体数据工具。各步骤与参考文件仅说明**所需信息**，由执行者按本优先级自行选择当前环境中可用的渠道。
+
 ## 触发与意图识别
 
 触发词示例：
@@ -59,12 +69,9 @@ agent_created: true
 
 ### 第 1 步：解析标的与市场
 
-1. 用 WeStock 搜索解析公司名 → 股票代码：
-   ```bash
-   npx -y westock-data-clawhub@1.0.4 search 比亚迪
-   ```
+1. 按「信息获取优先级」选择可用渠道，搜索解析公司名 → 股票代码。
 2. 确认代码前缀：A 股 `sh/sz/bj`，港股 `hk`。
-3. 用 `profile` 取公司简况（行业、主营、上市日期），作为后续分析基础。
+3. 获取公司简况（行业、主营、上市日期），作为后续分析基础。
 
 ### 第 2 步：多空前置筛选关卡（强制 · 在第 3 步前执行 · 任一关卡触发即终止全部流程）
 
@@ -139,23 +146,17 @@ agent_created: true
 
 **因子定义与三时间框架判定标准**：见 [references/factor-definitions.md](./references/factor-definitions.md)（必读，包含每个因子的当前多/空标准 + 中期向好/不佳标准与所需数据）；长期（3 年）判定指引见 [references/scoring-algorithm.md](./references/scoring-algorithm.md) 第 5 节。
 
-**数据源策略**（混合数据源）：
-- **定性因子**（宏观/社会舆论/行业/政策/上游/下游/竞争对手/替代品/进入壁垒）：用元宝搜索标准版（`tencent-yuanbao-standard-search` skill），不可用时回退 WebSearch。
-- **结构化因子**（公司资本操作/筹码/资金/业绩动能）：用 WeStock CLI（`npx -y westock-data-clawhub@1.0.4`）取结构化数据，具体命令见 [references/data-sources.md](./references/data-sources.md)。
-- **估值因子（因子 14）**：主指标历史分位与可比公司估值用元宝搜索（理杏仁/乐咕乐股/券商研报等 T2+ 来源）；预期增速与 13a 共用 NeoData 一致预期。取数方式见 data-sources.md 第 6 节。
-- **机构观点/研报/一致预期**：用 NeoData 金融搜索（`neodata-financial-search` skill）补充；因子 13 的 13a 预期差校验须用其获取卖方一致预期。
+**数据源策略**（获取渠道按「信息获取优先级」选择，此处仅说明所需信息）：
+- **定性因子**（宏观/社会舆论/行业/政策/上游/下游/竞争对手/替代品/进入壁垒）：需要行业动态、政策文件、竞争格局、舆情等定性信息。
+- **结构化因子**（公司资本操作/筹码/资金/业绩动能）：需要股东结构、筹码分布、融资融券与资金流向、财务报表等结构化数据，所需数据项见 [references/data-sources.md](./references/data-sources.md)。
+- **估值因子（因子 14）**：需要主估值指标近 5 年历史分位、可比公司估值、卖方一致预期增速（与 13a 共用）。所需数据项见 data-sources.md 第 6 节。
+- **机构观点/研报/一致预期**：需要机构评级与目标价、券商研报、卖方一致预期净利润/营收增速（因子 13 的 13a 预期差校验必用）。
 
 **信源可信度**：所有结论引用 T2+ 信源，T4/T5 不引用。标准见 [references/source-credibility.md](./references/source-credibility.md)。
 
 **因子 13（业绩动能）**：判定标准、14 项检查定义与 13a 预期差校验见 [references/factor-definitions.md](./references/factor-definitions.md) 第 13 节与 [references/momentum-check.md](./references/momentum-check.md)。
 
-**自动化脚本**（推荐）：
-
-```bash
-python3 scripts/momentum_calc.py <stock_code>
-```
-
-脚本自动获取三大报表、计算所有指标与比率、检测趋势、输出预警报告。仅依赖 Python 标准库。若脚本不可用，手动从 WeStock `finance` 命令获取数据并按 momentum-check.md 定义的规则计算；港股不支持时按 momentum-check.md「港股特殊处理」执行。
+**计算方式**：获取最近 8+ 季度三大报表数据后，按 momentum-check.md 定义的规则计算 14 项检查指标、检测趋势并汇总预警；港股财务报表数据不可获取时，按 momentum-check.md「港股特殊处理」执行。
 
 ### 第 4 步：单位经济与量价拆分（通用分析镜头，贯穿第 3 步因子评估）
 
@@ -207,7 +208,7 @@ python3 scripts/scoring_calc.py <评估输入.json>
 ### 第 8 步：跟踪指标最新进展查询
 
 对第 7 步定义的每个跟踪指标：
-1. 用元宝搜索标准版（不可用回退 WebSearch）查询该指标最新进展。
+1. 按「信息获取优先级」选择可用渠道，查询该指标最新进展。
 2. 给出**进展评价**：超出预期 / 符合预期 / 不及预期。
 3. 评价必须基于具体数据或事件，附信源链接。
 
@@ -252,7 +253,7 @@ python3 scripts/scoring_calc.py <评估输入.json>
 2. **利空因子必须有应对措施分析**：有则给指标，无则如实报告"未公开明确应对措施"。
 3. **跟踪指标进展评价必须基于具体数据/事件**，不可泛泛而谈。
 4. **信源 T2+ 才可引用**，T3/T4/T5（雪球、贴吧、KOL）不引用。
-5. **港股特殊性**：筹码数据 WeStock 不支持（仅沪深京 A 股），港股筹码多空用 web search 查机构持仓变化；港股资金多空的 call/put 用 web search 查。
+5. **港股特殊性**：筹码分布数据通常仅覆盖沪深京 A 股，港股筹码多空用机构持仓变化等公开信息替代判断；港股资金多空的 call/put 持仓比通过衍生品公开数据（牛熊证街货、期权未平仓合约等）获取。
 6. **数据时效**：所有数据标注日期；新闻类信源优先近 3 个月。
 7. **中立立场**：多空判断基于事实，不预设立场；利多利空并存时如实标注。
 8. **不构成投资建议**：报告末尾必须附免责声明。
@@ -276,9 +277,8 @@ python3 scripts/scoring_calc.py <评估输入.json>
 | [references/factor-definitions.md](./references/factor-definitions.md) | 14 因子的多/空判定标准与所需数据（必读） |
 | [references/momentum-check.md](./references/momentum-check.md) | 因子 13（业绩动能）的 14 个检查项定义与预警规则（必读） |
 | [references/scoring-algorithm.md](./references/scoring-algorithm.md) | 加权多空评分算法规格：分值映射/权重/阈值/长期判定指引（必读） |
-| [references/data-sources.md](./references/data-sources.md) | 结构化因子的 WeStock/NeoData 数据获取命令 |
+| [references/data-sources.md](./references/data-sources.md) | 结构化因子与尾部风险熔断项的所需数据清单 |
 | [references/source-credibility.md](./references/source-credibility.md) | T0-T5 信源可信度分级标准 |
-| [scripts/momentum_calc.py](./scripts/momentum_calc.py) | 业绩动能（因子 13）自动化计算脚本（仅依赖标准库） |
 | [scripts/scoring_calc.py](./scripts/scoring_calc.py) | 三时间框架加权评分自动化计算脚本（仅依赖标准库） |
 | [config/scoring-config.json](./config/scoring-config.json) | 评分参数唯一权威配置：因子权重/框架权重/档位分值/评级阈值 |
 | [assets/report-template.md](./assets/report-template.md) | .md 评估报告输出模板 |

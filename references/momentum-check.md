@@ -16,24 +16,13 @@
 
 ## 数据获取
 
-```bash
-# 利润表（8+ 季度）
-npx -y westock-data-clawhub@1.0.4 finance <code> --type lrb --num 8
+**所需数据**：最近 8+ 个季度的三大报表（获取渠道按 SKILL.md「信息获取优先级」选择）：
 
-# 资产负债表
-npx -y westock-data-clawhub@1.0.4 finance <code> --type zcfz --num 8
+- **利润表**：单季营业收入、归母净利润、扣非净利润、资产减值损失等（注意区分单季值与累计值，累计值需差分出单季值）。
+- **资产负债表**：存货、应收票据及应收账款、合同负债、流动资产、流动负债、总资产、归母净资产等（期末值）。
+- **现金流量表**：经营活动现金流净额。
 
-# 现金流量表
-npx -y westock-data-clawhub@1.0.4 finance <code> --type xjll --num 8
-```
-
-**自动化脚本**（推荐）：
-
-```bash
-python3 scripts/momentum_calc.py <stock_code> [num_quarters]
-```
-
-脚本自动获取三大报表、计算所有指标与比率、检测趋势、输出预警报告。仅依赖 Python 标准库。
+获取数据后按本文件定义的规则计算各指标与比率、检测趋势、汇总预警。
 
 ---
 
@@ -41,20 +30,20 @@ python3 scripts/momentum_calc.py <stock_code> [num_quarters]
 
 | # | 检查项 | 维度 | 数据来源 |
 |---|--------|------|----------|
-| 1 | 营收增长动能趋势 | 增长 | lrb OperatingRevenue_Q |
-| 2 | 扣非净利润趋势 | 盈利 | lrb NPParentCompanyOwners_Q + zcfz NPDeductNonRecurringPL |
-| 3 | 盈利质量（非经常性损益） | 质量 | lrb NP vs 扣非NP |
-| 4 | 经营现金流趋势 | 现金流 | xjll NetOperateCashFlow_Q |
-| 5 | 存货周期趋势 | 库存 | zcfz Inventories + lrb COGS |
-| 6 | 总资产周转率趋势 | 效率 | lrb Revenue / zcfz TotalAssets |
-| 7 | 存货周转率趋势 | 效率 | lrb COGS / zcfz Inventories |
-| 8 | 应收账款周转率趋势 | 效率 | lrb Revenue / zcfz BillAccReceivable |
-| 9 | 流动比率趋势 | 偿债 | zcfz CurrentAssets / CurrentLiability |
-| 10 | 速动比率趋势 | 偿债 | zcfz (CurrentAssets - Inventory) / CurrentLiability |
-| 11 | 增收不增利检测（量利剪刀差） | 盈利质量 | lrb 营收YoY vs 扣非NP YoY 差值 |
-| 12 | 资产减值趋势 | 风险释放/盈利质量 | lrb 资产减值损失 / 营收 |
-| 13 | 合同负债/预收趋势（前瞻需求） | 前瞻订单 | zcfz ContractLiability 环比/同比 |
-| 14 | 存货积压风险（结构校验） | 库存 | zcfz 存货增速 vs 营收增速（+结构拆分） |
+| 1 | 营收增长动能趋势 | 增长 | 利润表：单季营业收入 |
+| 2 | 扣非净利润趋势 | 盈利 | 利润表：归母净利润（单季）+ 扣非净利润（累计差分） |
+| 3 | 盈利质量（非经常性损益） | 质量 | 利润表：归母净利润 vs 扣非净利润 |
+| 4 | 经营现金流趋势 | 现金流 | 现金流量表：经营现金流净额（单季） |
+| 5 | 存货周期趋势 | 库存 | 资产负债表：存货 + 利润表：营业成本 |
+| 6 | 总资产周转率趋势 | 效率 | 利润表：营业收入 / 资产负债表：总资产 |
+| 7 | 存货周转率趋势 | 效率 | 利润表：营业成本 / 资产负债表：存货 |
+| 8 | 应收账款周转率趋势 | 效率 | 利润表：营业收入 / 资产负债表：应收票据及应收账款 |
+| 9 | 流动比率趋势 | 偿债 | 资产负债表：流动资产 / 流动负债 |
+| 10 | 速动比率趋势 | 偿债 | 资产负债表：（流动资产 − 存货）/ 流动负债 |
+| 11 | 增收不增利检测（量利剪刀差） | 盈利质量 | 利润表：营收 YoY vs 扣非净利润 YoY 差值 |
+| 12 | 资产减值趋势 | 风险释放/盈利质量 | 利润表：资产减值损失 / 营收 |
+| 13 | 合同负债/预收趋势（前瞻需求） | 前瞻订单 | 资产负债表：合同负债环比/同比 |
+| 14 | 存货积压风险（结构校验） | 库存 | 资产负债表：存货增速 vs 利润表：营收增速（+结构拆分） |
 
 ---
 
@@ -65,7 +54,7 @@ python3 scripts/momentum_calc.py <stock_code> [num_quarters]
 **指标**：最近 4 个季度的营收 YoY 增长率序列
 
 **计算**：
-- 从 lrb 取 `OperatingRevenue_Q`（单季营收，_Q 字段已为单季值）
+- 取利润表单季营业收入（若仅披露累计值，需差分出单季值）
 - YoY = (当季营收 - 去年同期营收) / |去年同期营收| × 100%
 - 需要至少 8 个季度数据才能算出最近 4 个季度的 YoY
 
@@ -87,7 +76,7 @@ python3 scripts/momentum_calc.py <stock_code> [num_quarters]
 **指标**：最近 4 个季度的扣非净利润 YoY 增长率序列
 
 **计算**：
-- 扣非NP 季度值 = 从 zcfz 的 `NPDeductNonRecurringPL`（累计值）计算单季度值
+- 扣非NP 季度值 = 从累计披露值差分计算单季度值
   - Q1 = 直接值
   - Q2 = H1 累计 - Q1
   - Q3 = 9M 累计 - H1 累计
@@ -111,7 +100,7 @@ python3 scripts/momentum_calc.py <stock_code> [num_quarters]
 **指标**：最新季度 |归母NP - 扣非NP| / |归母NP|
 
 **计算**：
-- 归母NP = lrb `NPParentCompanyOwners_Q`
+- 归母NP = 利润表单季归母净利润
 - 扣非NP = 如上计算
 - 差额占比 = |归母NP - 扣非NP| / |归母NP| × 100%
 
@@ -131,8 +120,8 @@ python3 scripts/momentum_calc.py <stock_code> [num_quarters]
 **指标**：最近 4 个季度经营现金流净额序列
 
 **计算**：
-- 从 xjll 取 `NetOperateCashFlow_Q`（单季值）
-- 若无 _Q 字段，从累计值计算季度值
+- 取现金流量表经营现金流净额单季值
+- 若仅披露累计值，从累计值差分计算季度值
 
 **预警规则**：
 | 条件 | 预警等级 |
@@ -154,7 +143,7 @@ python3 scripts/momentum_calc.py <stock_code> [num_quarters]
 - 最近 4 个季度存货周转天数（TTM 制）
 
 **计算**：
-- 存货 = zcfz `Inventories`（期末值，非累计）
+- 存货 = 资产负债表存货期末值（非累计）
 - 存货 YoY = (期末存货 - 去年同期) / |去年同期| × 100%
 - 存货周转率(TTM) = TTM 营业成本 / 平均存货
 - 存货周转天数 = 365 / 存货周转率
@@ -179,8 +168,8 @@ python3 scripts/momentum_calc.py <stock_code> [num_quarters]
 **计算**：
 - 总资产周转率 = TTM 营收 / 平均总资产
 - 平均总资产 = (上期末总资产 + 本期末总资产) / 2
-- TTM 营收 = lrb `OperatingRevenueTTM`
-- 总资产 = zcfz `TotalAssets`
+- TTM 营收 = 利润表滚动四季营业收入
+- 总资产 = 资产负债表总资产期末值
 
 **预警规则**：
 | 条件 | 预警等级 |
@@ -199,7 +188,7 @@ python3 scripts/momentum_calc.py <stock_code> [num_quarters]
 **计算**：
 - 存货周转率 = TTM 营业成本 / 平均存货
 - 存货周转天数 = 365 / 存货周转率
-- TTM COGS = lrb `OperatingCostTTM`
+- TTM 营业成本 = 利润表滚动四季营业成本
 - 平均存货 = (上期末 + 本期末) / 2
 
 **预警规则**：
@@ -219,7 +208,7 @@ python3 scripts/momentum_calc.py <stock_code> [num_quarters]
 **计算**：
 - 应收账款周转率 = TTM 营收 / 平均应收账款（含应收票据）
 - 应收账款周转天数 = 365 / 应收账款周转率
-- 应收 = zcfz `BillAccReceivable`（应收票据及应收账款）
+- 应收 = 资产负债表"应收票据及应收账款"科目
 - 平均应收 = (上期末 + 本期末) / 2
 
 **预警规则**：
@@ -239,8 +228,8 @@ python3 scripts/momentum_calc.py <stock_code> [num_quarters]
 
 **计算**：
 - 流动比率 = 流动资产 / 流动负债
-- 流动资产 = zcfz `TotalCurrentAssets`
-- 流动负债 = zcfz `TotalCurrentLiability`
+- 流动资产 = 资产负债表流动资产合计
+- 流动负债 = 资产负债表流动负债合计
 - 均为期末值（不需要平均）
 
 **预警规则**：
@@ -296,7 +285,7 @@ python3 scripts/momentum_calc.py <stock_code> [num_quarters]
 **指标**：最近 4 个季度资产减值损失 / 营业收入 占比序列
 
 **计算**：
-- 资产减值损失 = lrb `AssetImpairmentLoss`（若含信用减值则取资产减值科目；字段名因报表版本而异，缺失时跳过）
+- 资产减值损失 = 利润表资产减值科目（口径因报表版本而异，缺失时跳过）
 - 占比 = 资产减值损失 / 当期营收 × 100%
 
 **预警规则**：
@@ -316,7 +305,7 @@ python3 scripts/momentum_calc.py <stock_code> [num_quarters]
 **指标**：最近 4 个季度合同负债（含预收款）环比/同比变化
 
 **计算**：
-- 合同负债 = zcfz `ContractLiability`（期末值）
+- 合同负债 = 资产负债表合同负债期末值
 - 环比变化 = (期末 − 上期末) / |上期末|；同比 = (期末 − 去年同期) / |去年同期|
 
 **预警规则**：
@@ -338,7 +327,7 @@ python3 scripts/momentum_calc.py <stock_code> [num_quarters]
 **计算**：
 - 存货增速 = 存货 YoY（来自检查项 5 的存货序列）
 - 营收增速 = 营收 YoY
-- 结构拆分（若 zcfz 提供）：原材料 / 在产品 / 库存商品 / 发出商品 占比变化
+- 结构拆分（若年报/报表附注提供）：原材料 / 在产品 / 库存商品 / 发出商品 占比变化
 
 **预警规则**：
 | 条件 | 预警等级 |
@@ -376,8 +365,8 @@ python3 scripts/momentum_calc.py <stock_code> [num_quarters]
 
 ## 港股特殊处理
 
-港股通过 WeStock CLI 获取财务数据的字段可能与 A 股不同。若 WeStock 不支持港股财务报表（`finance hkXXXXXX --type lrb` 无返回），则：
-1. 用元宝搜索查"公司名 最新财报 营收 净利润 扣非"获取最近 2-3 个季度数据
+港股财务报表的披露字段与口径可能与 A 股不同。若无法获取港股结构化财务报表数据，则：
+1. 通过网络搜索查"公司名 最新财报 营收 净利润 扣非"，获取最近 2-3 个季度数据
 2. 手动计算关键趋势指标（营收 YoY、NP YoY）
 3. 财务比率若无法获取，标注"港股财务比率数据不可用，跳过"
-4. 在报告中注明数据来源为 web search 而非结构化数据
+4. 在报告中注明数据来源为网络搜索而非结构化数据

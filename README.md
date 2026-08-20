@@ -23,11 +23,10 @@ stock-bull-bear-evaluator/
 │   ├── factor-definitions.md     # 14 因子多/空判定标准与所需数据
 │   ├── momentum-check.md         # 因子 13（业绩动能）14 项检查规则
 │   ├── scoring-algorithm.md      # 加权评分算法规格（分值映射/权重/阈值）
-│   ├── data-sources.md           # WeStock / NeoData 数据获取命令
+│   ├── data-sources.md           # 结构化因子与熔断项所需数据清单
 │   └── source-credibility.md     # T0-T5 信源可信度分级标准
 ├── scripts/
-│   ├── scoring_calc.py           # 三时间框架加权评分脚本（仅依赖标准库）
-│   └── momentum_calc.py          # 因子 13 业绩动能检查脚本（仅依赖标准库）
+│   └── scoring_calc.py           # 三时间框架加权评分脚本（仅依赖标准库）
 └── assets/
     └── report-template.md        # .md 评估报告输出模板
 ```
@@ -42,15 +41,7 @@ python3 scripts/scoring_calc.py <评估输入.json>
 
 输入 JSON 为 14 因子的三框架档位（可选 `circuit_breakers` 熔断字段），脚本自动校验配置并计算加权总分、输出评分表。
 
-### 业绩动能检查（因子 13，推荐）
-
-```bash
-python3 scripts/momentum_calc.py <stock_code>
-```
-
-自动获取三大报表、计算指标比率、检测趋势并输出预警报告。
-
-> 两个脚本均仅依赖 Python 3 标准库，无需安装第三方依赖。
+> 脚本仅依赖 Python 3 标准库，无需安装第三方依赖。
 
 ## 输出物
 
