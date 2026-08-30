@@ -30,7 +30,7 @@
   "frames": {
     "current": {
       "label": "当前多空状况",
-      "weight": 0.30,
+      "weight": 0.20,
       "factor_weights": {
         "宏观": 0.07,
         "社会舆论": 0.05,
@@ -70,7 +70,7 @@
     },
     "long": {
       "label": "长期评估(3年)",
-      "weight": 0.30,
+      "weight": 0.40,
       "factor_weights": {
         "宏观": 0.0,
         "社会舆论": 0.0,

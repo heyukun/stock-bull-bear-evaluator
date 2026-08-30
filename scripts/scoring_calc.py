@@ -75,6 +75,9 @@ def validate_config(cfg, path):
     for fk in FRAMES:
         fr = frames[fk]
         label = fr.get("label", fk)
+        fw = fr.get("weight")
+        if not isinstance(fw, (int, float)) or isinstance(fw, bool) or fw < 0:
+            raise ValueError("框架[%s]缺少合法的框架权重 weight（须为非负数字）" % label)
         w = fr.get("factor_weights", {})
         missing = [f for f in factors if f not in w]
         if missing:
@@ -85,7 +88,7 @@ def validate_config(cfg, path):
         s = sum(w.values())
         if abs(s - 1.0) > TOLERANCE:
             raise ValueError("框架[%s]因子权重之和为 %.4f, 必须等于 1.0" % (label, s))
-        fw_total += fr.get("weight", 0)
+        fw_total += fw
     if abs(fw_total - 1.0) > TOLERANCE:
         raise ValueError("三框架权重之和为 %.4f, 必须等于 1.0" % fw_total)
 
@@ -162,7 +165,7 @@ def compute(data, cfg):
                          "score": sc, "weight": w, "contrib": contrib})
         frame_results[fk] = {
             "label": fr.get("label", fk),
-            "weight": fr.get("weight", 0.0),
+            "weight": fr["weight"],
             "rows": rows,
             "score": total,
             "rating": rating_of(total, thresholds),
