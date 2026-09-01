@@ -33,32 +33,14 @@ stock-bull-bear-evaluator/
 
 ## 快速开始
 
-### 评分计算（强制使用脚本）
+1. 将本 skill（github 链接）发送给你的 AI 编程助手（如 Kimi Code），让它将本 skill 安装到其 skill 目录。
+2. 安装完成后，直接对 AI 说：
 
-```bash
-python3 scripts/scoring_calc.py <评估输入.json>
+```
+/stock-bull-bear-evaluator 公司名
 ```
 
-输入 JSON 为 14 因子的三框架档位（可选 `circuit_breakers` 熔断字段），脚本自动校验配置并计算加权总分、输出评分表。
-
-> 脚本仅依赖 Python 3 标准库，无需安装第三方依赖。
-
-## 输出物
-
-对话内输出三张表（14 因子三时间框架评估表 / 利空应对指标跟踪表 / 加权多空评分表），并生成 `多空评估报告_<公司名>_<YYYYMMDD>.md` 文件。
-
-## 关键纪律（摘要）
-
-1. 每个因子必须给出明确多空判断，不可只列现象。
-2. 利空因子必须有应对措施分析，无则如实报告「未公开明确应对措施」。
-3. 信源须 T2+ 才可引用，T4/T5（雪球、贴吧、KOL）不引用。
-4. 加权评分必须由 `scoring_calc.py` 计算，不可手工估算。
-5. 评分参数以 `config/scoring-config.json` 为唯一权威，调整须记录 changelog。
-6. 报告末尾必须附免责声明，本工具不构成投资建议。
-7. 尾部风险熔断不可跳过，触发任一项综合多空评分记 -1（评级同时封顶「看空」）。
-8. 前置筛选关卡一票否决，任一触发即终止全部流程。
-
-详细流程与全部 20 条纪律见 [SKILL.md](./SKILL.md)。
+即可开始评估（例如 `/stock-bull-bear-evaluator 比亚迪`）。
 
 ## License
 
