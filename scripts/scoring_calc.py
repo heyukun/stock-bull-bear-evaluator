@@ -108,8 +108,8 @@ def validate_config(cfg, path):
     if not th:
         raise ValueError("config.rating_thresholds 缺失")
     mins = [t["min"] for t in th]
-    if mins != sorted(mins, reverse=True) or mins[-1] != SCORE_MIN or mins[0] > SCORE_MAX:
-        raise ValueError("rating_thresholds 必须严格递减、覆盖 [-9,9] 且最小值为 -9")
+    if mins != sorted(mins, reverse=True) or mins[0] > SCORE_MAX or mins[-1] < SCORE_MIN:
+        raise ValueError("rating_thresholds 必须严格递减且各阈值位于 [-9,9] 内（低于最低阈值的得分自动归入最低档）")
 
 
 def resolve_score(value, level_scores, ctx):
