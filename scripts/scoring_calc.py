@@ -20,29 +20,41 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEFAULT_CONFIG = os.path.join(BASE_DIR, "config", "scoring-config.json")
 
 FRAMES = ("current", "mid", "long")
-NEUTRAL_SCORE = 5.5
+NEUTRAL_SCORE = 0.0
+SCORE_MIN, SCORE_MAX = -9.0, 9.0
 TOLERANCE = 1e-4
-BREAKER_SCORE = -1.0  # 尾部风险熔断触发时的综合评分哨兵值（加权结果作废）
+BREAKER_SCORE = -99.0  # 尾部风险熔断/前置关卡终止时的综合评分哨兵值（在合法分制 [-9,9] 之外，加权结果作废）
+
+REQUIRED_LEVELS = (
+    "利多S", "利多A", "利多B",
+    "中性偏多S", "中性偏多A", "中性偏多B",
+    "中性",
+    "中性偏空S", "中性偏空A", "中性偏空B",
+    "利空S", "利空A", "利空B",
+    "向好S", "向好A", "向好B",
+    "不明朗",
+    "不佳S", "不佳A", "不佳B",
+)
 
 DEMO_INPUT = {
     "company": "示例公司（演示数据）",
     "code": "sz000000",
-    "date": "2026-08-16",
+    "date": "2026-09-03",
     "factors": {
-        "宏观":            {"current": "中性偏多", "mid": "向好",   "long": "中性偏多"},
-        "社会舆论":        {"current": "中性",     "mid": "不明朗", "long": "中性"},
-        "行业":            {"current": "利多",     "mid": "向好",   "long": "利多"},
-        "政策":            {"current": "中性",     "mid": "向好",   "long": "中性偏多"},
-        "上游":            {"current": "中性偏空", "mid": "不明朗", "long": "中性"},
-        "下游":            {"current": "利多",     "mid": "向好",   "long": "利多"},
-        "竞争对手":        {"current": "中性偏多", "mid": "不明朗", "long": "中性"},
-        "替代品/新技术颠覆": {"current": "中性",     "mid": "不明朗", "long": "中性偏空"},
-        "进入壁垒":        {"current": "利多",     "mid": "不明朗", "long": "利多"},
-        "公司资本操作":    {"current": "中性偏多", "mid": "向好",   "long": "中性偏多"},
-        "筹码多空":        {"current": "中性",     "mid": "不明朗", "long": "中性"},
-        "资金多空":        {"current": "中性偏多", "mid": "向好",   "long": "中性"},
-        "业绩动能":        {"current": "中性偏多", "mid": "向好",   "long": "中性"},
-        "估值":            {"current": "中性偏空", "mid": "不明朗", "long": "中性"}
+        "宏观":            {"current": "中性偏多A", "mid": "向好A",   "long": "中性偏多A"},
+        "社会舆论":        {"current": "中性",      "mid": "不明朗",  "long": "中性"},
+        "行业":            {"current": "利多S",     "mid": "向好S",   "long": "利多A"},
+        "政策":            {"current": "中性",      "mid": "向好B",   "long": "中性偏多B"},
+        "上游":            {"current": "中性偏空B", "mid": "不明朗",  "long": "中性"},
+        "下游":            {"current": "利多A",     "mid": "向好A",   "long": "利多B"},
+        "竞争对手":        {"current": "中性偏多S", "mid": "不明朗",  "long": "中性"},
+        "替代品/新技术颠覆": {"current": "中性",      "mid": "不明朗",  "long": "中性偏空B"},
+        "进入壁垒":        {"current": "利多A",     "mid": "不明朗",  "long": "利多A"},
+        "公司资本操作":    {"current": "中性偏多A", "mid": "向好A",   "long": "中性偏多A"},
+        "筹码多空":        {"current": "中性",      "mid": "不明朗",  "long": "中性"},
+        "资金多空":        {"current": "中性偏多B", "mid": "向好B",   "long": "中性"},
+        "业绩动能":        {"current": "中性偏多S", "mid": "向好S",   "long": "中性"},
+        "估值":            {"current": "中性偏空A", "mid": "不明朗",  "long": "中性"}
     }
 }
 
@@ -63,7 +75,7 @@ def validate_config(cfg, path):
     levels = cfg.get("level_scores")
     if not levels:
         raise ValueError("config.level_scores 缺失")
-    for lv in ("利多", "中性偏多", "中性", "中性偏空", "利空", "向好", "不明朗", "不佳"):
+    for lv in REQUIRED_LEVELS:
         if lv not in levels:
             raise ValueError("level_scores 缺少档位: %s" % lv)
 
@@ -96,22 +108,22 @@ def validate_config(cfg, path):
     if not th:
         raise ValueError("config.rating_thresholds 缺失")
     mins = [t["min"] for t in th]
-    if mins != sorted(mins, reverse=True) or mins[-1] != 0.0 or mins[0] > 10.0:
-        raise ValueError("rating_thresholds 必须严格递减、覆盖 [0,10] 且最小值为 0")
+    if mins != sorted(mins, reverse=True) or mins[-1] != SCORE_MIN or mins[0] > SCORE_MAX:
+        raise ValueError("rating_thresholds 必须严格递减、覆盖 [-9,9] 且最小值为 -9")
 
 
 def resolve_score(value, level_scores, ctx):
-    """档位字符串→分值; 数字直接使用; 结果 clamp 到 [1,10]。"""
+    """档位字符串→分值; 数字直接使用; 结果 clamp 到 [-9,9]。"""
     if isinstance(value, str):
         v = value.strip()
         if v not in level_scores:
-            raise ValueError("%s: 未知档位 '%s'（合法档位见 config.level_scores）" % (ctx, value))
+            raise ValueError("%s: 未知档位 '%s'（合法档位见 config.level_scores，利多/利空等须带 S/A/B 后缀）" % (ctx, value))
         score = float(level_scores[v])
     elif isinstance(value, (int, float)) and not isinstance(value, bool):
         score = float(value)
     else:
-        raise ValueError("%s: 非法取值 %r（须为档位字符串或 1-10 数字）" % (ctx, value))
-    return max(1.0, min(10.0, score))
+        raise ValueError("%s: 非法取值 %r（须为档位字符串或 -9~9 数字）" % (ctx, value))
+    return max(SCORE_MIN, min(SCORE_MAX, score))
 
 
 def rating_of(score, thresholds):
@@ -175,7 +187,7 @@ def compute(data, cfg):
     composite = sum(frame_results[fk]["score"] * frame_results[fk]["weight"] for fk in FRAMES)
     raw_rating = rating_of(composite, thresholds)
 
-    # 尾部风险熔断：不参与加权；触发时综合评分记为 BREAKER_SCORE(-1)，评级封顶 cap_rating
+    # 尾部风险熔断：不参与加权；触发时综合评分记为 BREAKER_SCORE(-99)，评级封顶 cap_rating
     breakers = []
     for b in data.get("circuit_breakers") or []:
         if isinstance(b, str):
@@ -188,7 +200,7 @@ def compute(data, cfg):
         order = [t["label"] for t in thresholds]
         if cap_rating in order and raw_rating in order and order.index(raw_rating) < order.index(cap_rating):
             final_rating = cap_rating
-    # 熔断触发时综合评分记为 -1（哨兵值，表示加权结果被一票否决）
+    # 熔断触发时综合评分记为 -99（哨兵值，在合法分制 [-9,9] 之外，表示加权结果被一票否决）
     final_composite = BREAKER_SCORE if breakers else composite
 
     return {
@@ -202,6 +214,7 @@ def compute(data, cfg):
         "raw_rating": raw_rating,
         "circuit_breakers": breakers,
         "config_version": cfg.get("version", ""),
+        "thresholds": thresholds,
         "warnings": warnings,
     }
 
@@ -236,7 +249,7 @@ def render_markdown(res):
                 r["factor"], raw, fmt(r["score"]), pct(r["weight"]), fmt(r["contrib"])))
         lines.append("| **框架得分** | | | **100%%** | **%.2f** |" % fr["score"])
         lines.append("")
-        lines.append("**%s 得分：%.2f / 10 → 评级：%s**" % (fr["label"], fr["score"], fr["rating"]))
+        lines.append("**%s 得分：%.2f（区间 -9 ~ +9）→ 评级：%s**" % (fr["label"], fr["score"], fr["rating"]))
         lines.append("")
 
     lines.append("#### 综合加权总分")
@@ -248,27 +261,38 @@ def render_markdown(res):
         lines.append("| %s | %.2f | %s | %.2f | %s |" % (
             fr["label"], fr["score"], pct(fr["weight"]), fr["score"] * fr["weight"], fr["rating"]))
     tripped = bool(res.get("circuit_breakers"))
-    comp_disp = "-1" if tripped else "%.2f" % res["composite"]
+    comp_disp = "-99" if tripped else "%.2f" % res["composite"]
     lines.append("| **综合加权总分** | | **100%%** | **%s** | **%s** |" % (
         comp_disp, res["composite_rating"]))
     lines.append("")
-    summary = "**综合加权总分：%s / 10 → 综合评级：%s**" % (comp_disp, res["composite_rating"])
+    summary = "**综合加权总分：%s（区间 -9 ~ +9）→ 综合评级：%s**" % (comp_disp, res["composite_rating"])
     if tripped:
-        summary += "（熔断触发，原始加权总分 %.2f 作废，按 -1 计）" % res["raw_composite"]
+        summary += "（熔断触发，原始加权总分 %.2f 作废，按 -99 计）" % res["raw_composite"]
     else:
-        summary += "（阈值：≥8.0 强烈看多 / 6.5-8.0 看多 / 4.5-6.5 中性 / 3.0-4.5 看空 / <3.0 强烈看空）"
+        ths = res.get("thresholds") or []
+        parts = []
+        for i, t in enumerate(ths):
+            lo = fmt(t["min"])
+            if i == 0:
+                parts.append("≥%s %s" % (lo, t["label"]))
+            elif i == len(ths) - 1:
+                parts.append("<%s %s" % (fmt(ths[i - 1]["min"]), t["label"]))
+            else:
+                parts.append("%s~%s %s" % (lo, fmt(ths[i - 1]["min"]), t["label"]))
+        if parts:
+            summary += "（阈值：%s）" % " / ".join(parts)
     lines.append(summary)
 
     if tripped:
         lines.append("")
-        lines.append("#### ⚠️ 尾部风险熔断触发（综合评分记为 -1）")
+        lines.append("#### ⚠️ 尾部风险熔断触发（综合评分记为 -99）")
         lines.append("")
         lines.append("| 熔断项 | 证据 |")
         lines.append("|--------|------|")
         for b in res["circuit_breakers"]:
             lines.append("| %s | %s |" % (b["item"], b["evidence"] or "—"))
         lines.append("")
-        lines.append("> 触发尾部风险熔断：综合评分结果按 **-1** 计（原始加权总分 %.2f），原始评级 **%s** 封顶为 **%s**（熔断项不参与加权，定义见 SKILL.md 第 5 步）。"
+        lines.append("> 触发尾部风险熔断：综合评分结果按 **-99** 计（原始加权总分 %.2f），原始评级 **%s** 封顶为 **%s**（熔断项不参与加权，定义见 SKILL.md 第 5 步）。"
                      % (res["raw_composite"], res["raw_rating"], res["composite_rating"]))
 
     if res["warnings"]:
